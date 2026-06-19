@@ -1,0 +1,1110 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Chart Analyzer</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
+
+    :root {
+      --bg:       #0a0a0f;
+      --surface:  #111118;
+      --border:   #1e1e2e;
+      --coral:    #ff6b6b;
+      --lavender: #9b8fff;
+      --gold:     #f0c040;
+      --green:    #4caf87;
+      --muted:    #555570;
+      --text:     #d4d4e8;
+      --text-dim: #7878a0;
+      --adx-pink: #e0609a;
+      --plus-di:  #6699ff;
+      --minus-di: #ffa040;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'IBM Plex Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ── Layout ── */
+    .app { display: flex; height: 100vh; overflow: hidden; }
+
+    .sidebar {
+      width: 300px;
+      min-width: 300px;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .main {
+      flex: 1;
+      overflow-y: auto;
+      padding: 28px;
+    }
+
+    /* ── Sidebar header ── */
+    .sidebar-header {
+      padding: 20px 18px 14px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .logo {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--lavender);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .logo span { color: var(--coral); }
+
+    .sidebar-sub {
+      font-size: 11px;
+      color: var(--text-dim);
+      margin-top: 3px;
+    }
+
+    /* ── Sidebar history ── */
+    .history-label {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      padding: 14px 18px 8px;
+    }
+
+    .history-list {
+      flex: 1;
+      overflow-y: auto;
+    }
+
+    .history-item {
+      padding: 10px 18px;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .history-item:hover { background: #16161f; }
+    .history-item.active { background: #1a1a2e; border-left: 2px solid var(--lavender); }
+
+    .hi-ticker {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .hi-meta {
+      font-size: 10px;
+      color: var(--text-dim);
+      margin-top: 2px;
+    }
+
+    .hi-bias {
+      font-size: 10px;
+      font-weight: 600;
+      margin-top: 3px;
+    }
+
+    .hi-bias.bullish { color: var(--lavender); }
+    .hi-bias.bearish { color: var(--coral); }
+    .hi-bias.neutral { color: var(--gold); }
+
+    .history-empty {
+      padding: 24px 18px;
+      font-size: 12px;
+      color: var(--text-dim);
+      line-height: 1.6;
+    }
+
+    /* ── Upload zone ── */
+    .upload-zone {
+      border: 1px dashed var(--border);
+      border-radius: 8px;
+      padding: 28px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+      margin-bottom: 16px;
+    }
+
+    .upload-zone:hover, .upload-zone.dragover {
+      border-color: var(--lavender);
+      background: #13131e;
+    }
+
+    .upload-zone-icon {
+      font-size: 28px;
+      margin-bottom: 8px;
+      opacity: 0.5;
+    }
+
+    .upload-zone-text {
+      font-size: 13px;
+      color: var(--text-dim);
+    }
+
+    .upload-zone-text strong {
+      color: var(--lavender);
+    }
+
+    .preview-img {
+      width: 100%;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      display: block;
+    }
+
+    /* ── DMI inputs ── */
+    .dmi-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .dmi-field label {
+      display: block;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      font-weight: 600;
+      margin-bottom: 5px;
+    }
+
+    .dmi-field input {
+      width: 100%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      padding: 7px 9px;
+      color: var(--text);
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    .dmi-field input:focus { border-color: var(--lavender); }
+
+    /* ── Ticker input ── */
+    .ticker-row {
+      margin-bottom: 16px;
+    }
+
+    .ticker-row label {
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-dim);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 5px;
+    }
+
+    .ticker-row input {
+      width: 100%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      padding: 8px 10px;
+      color: var(--text);
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 14px;
+      font-weight: 600;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    .ticker-row input:focus { border-color: var(--lavender); }
+
+    /* ── Analyse knop ── */
+    .btn-analyze {
+      width: 100%;
+      padding: 12px;
+      background: var(--lavender);
+      color: #0a0a0f;
+      border: none;
+      border-radius: 6px;
+      font-family: 'IBM Plex Sans', sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+      margin-bottom: 20px;
+    }
+
+    .btn-analyze:hover:not(:disabled) { opacity: 0.9; transform: translateY(-1px); }
+    .btn-analyze:disabled { background: var(--muted); color: var(--text-dim); cursor: not-allowed; transform: none; }
+
+    /* ── Result cards ── */
+    .result-section { margin-bottom: 24px; }
+
+    .section-label {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 10px;
+    }
+
+    /* Bias card */
+    .bias-card {
+      background: var(--surface);
+      border-radius: 8px;
+      padding: 20px;
+      border-left: 3px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .bias-card.bullish { border-left-color: var(--lavender); }
+    .bias-card.bearish { border-left-color: var(--coral); }
+    .bias-card.neutral { border-left-color: var(--gold); }
+
+    .bias-score {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 44px;
+      font-weight: 600;
+      line-height: 1;
+      min-width: 90px;
+    }
+
+    .bias-score.bullish { color: var(--lavender); }
+    .bias-score.bearish { color: var(--coral); }
+    .bias-score.neutral { color: var(--gold); }
+
+    .bias-info { flex: 1; }
+
+    .bias-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+
+    .bias-label.bullish { color: var(--lavender); }
+    .bias-label.bearish { color: var(--coral); }
+    .bias-label.neutral { color: var(--gold); }
+
+    .bias-summary { font-size: 13px; color: var(--text-dim); line-height: 1.5; }
+
+    /* Score bar */
+    .score-bar-wrap {
+      background: var(--border);
+      height: 4px;
+      border-radius: 2px;
+      margin-top: 10px;
+      overflow: hidden;
+    }
+
+    .score-bar-fill {
+      height: 100%;
+      border-radius: 2px;
+      transition: width 0.6s ease;
+    }
+
+    /* Signal grid */
+    .signal-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .signal-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      padding: 14px;
+    }
+
+    .signal-card.full-width { grid-column: 1 / -1; }
+
+    .sc-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .sc-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .sc-title {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-dim);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .sc-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      padding: 4px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 12px;
+      gap: 8px;
+    }
+
+    .sc-row:last-child { border-bottom: none; }
+
+    .sc-key { color: var(--text-dim); flex-shrink: 0; }
+    .sc-val { color: var(--text); text-align: right; font-family: 'IBM Plex Mono', monospace; font-size: 11px; }
+
+    .sc-observation {
+      font-size: 12px;
+      color: var(--text-dim);
+      line-height: 1.5;
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid var(--border);
+    }
+
+    /* Trade suggestion */
+    .trade-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      overflow: hidden;
+    }
+
+    .trade-header {
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .trade-direction {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 4px;
+    }
+
+    .trade-direction.long { background: #1a2e20; color: var(--green); }
+    .trade-direction.wait { background: #2a2a14; color: var(--gold); }
+
+    .trade-body { padding: 14px 16px; }
+
+    .trade-row {
+      display: flex;
+      gap: 10px;
+      padding: 5px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 12px;
+    }
+
+    .trade-row:last-child { border-bottom: none; }
+    .trade-key { color: var(--text-dim); width: 100px; flex-shrink: 0; }
+    .trade-val { color: var(--text); line-height: 1.5; }
+
+    .risk-note {
+      margin-top: 10px;
+      padding: 8px 10px;
+      background: #1e1a0a;
+      border: 1px solid #3a2e00;
+      border-radius: 5px;
+      font-size: 11px;
+      color: var(--gold);
+      line-height: 1.5;
+    }
+
+    /* Loading */
+    .loading-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 60px 0;
+      gap: 14px;
+    }
+
+    .spinner {
+      width: 32px;
+      height: 32px;
+      border: 2px solid var(--border);
+      border-top-color: var(--lavender);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .loading-text {
+      font-size: 13px;
+      color: var(--text-dim);
+      font-family: 'IBM Plex Mono', monospace;
+    }
+
+    /* Error */
+    .error-box {
+      padding: 14px;
+      background: #1e0f0f;
+      border: 1px solid var(--coral);
+      border-radius: 6px;
+      font-size: 13px;
+      color: var(--coral);
+      line-height: 1.5;
+    }
+
+    /* Empty state */
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 60vh;
+      gap: 12px;
+      text-align: center;
+    }
+
+    .empty-icon { font-size: 40px; opacity: 0.2; }
+
+    .empty-title {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 14px;
+      color: var(--text-dim);
+    }
+
+    .empty-sub { font-size: 12px; color: var(--muted); max-width: 280px; line-height: 1.6; }
+
+    /* SR levels */
+    .sr-row {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+
+    .sr-item {
+      flex: 1;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 12px 14px;
+    }
+
+    .sr-label {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    .sr-label.support { color: var(--lavender); }
+    .sr-label.resistance { color: var(--coral); }
+
+    .sr-value {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .sr-obs { font-size: 11px; color: var(--text-dim); margin-top: 4px; line-height: 1.4; }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    /* Delete btn */
+    .btn-delete {
+      background: none;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 13px;
+      padding: 2px 4px;
+      border-radius: 3px;
+      transition: color 0.15s;
+    }
+    .btn-delete:hover { color: var(--coral); }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ── Sidebar ── -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="logo">Chart<span>.</span>Analyzer</div>
+      <div class="sidebar-sub">Matrix · ATRP · DMI</div>
+    </div>
+    <div class="history-label">Analyses</div>
+    <div class="history-list" id="historyList">
+      <div class="history-empty">Nog geen analyses opgeslagen.<br>Upload een chart om te beginnen.</div>
+    </div>
+  </aside>
+
+  <!-- ── Main ── -->
+  <main class="main">
+    <!-- Upload + input panel -->
+    <div id="inputPanel">
+
+      <!-- Screenshot upload -->
+      <div class="upload-zone" id="uploadZone">
+        <div class="upload-zone-icon">📊</div>
+        <div class="upload-zone-text"><strong>Klik of sleep</strong> je TradingView screenshot hier</div>
+        <div class="upload-zone-text" style="font-size:11px;margin-top:4px;">Matrix + ATRP + DMI zichtbaar</div>
+        <input type="file" id="fileInput" accept="image/*" style="display:none" />
+      </div>
+
+      <div id="previewWrap" style="display:none;margin-bottom:16px;">
+        <img id="previewImg" class="preview-img" />
+        <button onclick="resetUpload()" style="background:none;border:none;color:var(--text-dim);font-size:12px;cursor:pointer;margin-top:6px;">↺ Andere screenshot kiezen</button>
+      </div>
+
+      <!-- Ticker + Tijdframe -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
+        <div>
+          <label style="display:block;font-size:11px;font-weight:600;color:var(--text-dim);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:5px;">Ticker</label>
+          <input type="text" id="tickerInput" placeholder="bv. BABA" style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:5px;padding:8px 10px;color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:14px;font-weight:600;outline:none;" />
+        </div>
+        <div>
+          <label style="display:block;font-size:11px;font-weight:600;color:var(--text-dim);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:5px;">Tijdframe</label>
+          <select id="timeframeInput" style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:5px;padding:8px 10px;color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:13px;outline:none;cursor:pointer;">
+            <option value="Weekly">Weekly</option>
+            <option value="Daily">Daily</option>
+            <option value="4H">4H</option>
+            <option value="1H">1H</option>
+            <option value="30m">30m</option>
+            <option value="15m">15m</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- DMI waarden -->
+      <div style="margin-bottom:6px;">
+        <span style="font-size:10px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);">DMI waarden (aflezen uit TradingView)</span>
+      </div>
+      <div class="dmi-row">
+        <div class="dmi-field">
+          <label style="color:var(--adx-pink)">ADX</label>
+          <input type="number" step="0.01" id="adxVal" placeholder="0.00" />
+        </div>
+        <div class="dmi-field">
+          <label style="color:var(--plus-di)">+DI</label>
+          <input type="number" step="0.01" id="plusDiVal" placeholder="0.00" />
+        </div>
+        <div class="dmi-field">
+          <label style="color:var(--minus-di)">−DI</label>
+          <input type="number" step="0.01" id="minusDiVal" placeholder="0.00" />
+        </div>
+      </div>
+
+      <button class="btn-analyze" id="analyzeBtn" onclick="runAnalysis()" disabled>
+        Analyseer chart
+      </button>
+    </div>
+
+    <!-- Output -->
+    <div id="outputPanel"></div>
+  </main>
+</div>
+
+<!-- Firebase -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, orderBy, query } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+
+  // ── Firebase config — vervang met jouw project ──
+  const firebaseConfig = {
+    apiKey: "AIzaSyDTozk3ZQ9fU96NJ-Bz8jg2B-3nGNAJSEo",
+    authDomain: "chart-analyzer-b61a3.firebaseapp.com",
+    projectId: "chart-analyzer-b61a3",
+    storageBucket: "chart-analyzer-b61a3.firebasestorage.app",
+    messagingSenderId: "431681045997",
+    appId: "1:431681045997:web:293f9f382a66b3e4f393e4"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  // ── State ──
+  let imageBase64 = null;
+  let imageMediaType = null;
+  let currentAnalysis = null;
+  let analyses = [];
+
+  // ── Expose globals ──
+  window.resetUpload = resetUpload;
+  window.runAnalysis = runAnalysis;
+  window.loadAnalysis = loadAnalysis;
+  window.deleteAnalysis = deleteAnalysis;
+
+  // ── Upload zone ──
+  const uploadZone = document.getElementById('uploadZone');
+  const fileInput = document.getElementById('fileInput');
+  const previewImg = document.getElementById('previewImg');
+  const previewWrap = document.getElementById('previewWrap');
+  const analyzeBtn = document.getElementById('analyzeBtn');
+
+  uploadZone.addEventListener('click', () => fileInput.click());
+
+  uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('dragover'); });
+  uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
+  uploadZone.addEventListener('drop', e => {
+    e.preventDefault();
+    uploadZone.classList.remove('dragover');
+    const file = e.dataTransfer.files[0];
+    if (file) handleFile(file);
+  });
+
+  fileInput.addEventListener('change', e => {
+    if (e.target.files[0]) handleFile(e.target.files[0]);
+  });
+
+  function handleFile(file) {
+    const reader = new FileReader();
+    reader.onload = () => {
+      imageBase64 = reader.result.split(',')[1];
+      imageMediaType = file.type;
+      previewImg.src = reader.result;
+      uploadZone.style.display = 'none';
+      previewWrap.style.display = 'block';
+      updateAnalyzeBtn();
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function resetUpload() {
+    imageBase64 = null;
+    imageMediaType = null;
+    previewImg.src = '';
+    uploadZone.style.display = '';
+    previewWrap.style.display = 'none';
+    fileInput.value = '';
+    updateAnalyzeBtn();
+  }
+
+  function updateAnalyzeBtn() {
+    analyzeBtn.disabled = !imageBase64;
+  }
+
+  // ── System prompt ──
+  const SYSTEM_PROMPT = `Je bent een ervaren technisch analist die gespecialiseerd is in het lezen van TradingView-charts met drie specifieke custom indicators. Je krijgt een screenshot van een chart met:
+
+1. HOOFDPANEEL — "Matrix" indicator (gecombineerd script), met:
+   - Matrix Candles: gekleurde candles ipv normale OHLC candles.
+     - LAVENDER/PAARS = bullish trend (up > down in de onderliggende berekening)
+     - CORAL/ROOD = bearish trend (up < down)
+     - Een buy-driehoek (omhoog, onder de candle) verschijnt als de Matrix-lijn omhoog kruist door het oversold-niveau (-200) na eerder daaronder te zijn geweest.
+     - Een sell-driehoek (omlaag, boven de candle) verschijnt als de Matrix-lijn omlaag kruist door het overbought-niveau (200) na eerder daarboven te zijn geweest.
+   - Dynamische Support/Resistance lijnen: twee horizontale/dynamische lijnen (coral = resistance, lavender = support) gebaseerd op een CCI-bandbreedte over de laatste 50 bars. Prijs die deze lijnen test of doorbreekt is significant.
+   - Williams Vix Fix histogram: meet volatility-spikes/capitulatie.
+     - Een spike in de WVF-histogram boven de eigen Bollinger-band of 50-bar percentile-high duidt op extreme angst/capitulatie - vaak samenvallend met lokale bodems.
+     - "AE" (Aggressive Entry): groene driehoek omhoog met tekst "AE" zichtbaar op de chart. Kleur: felgroen (#80FF00). Vroeg, agressief koopsignaal direct na zo'n spike die alweer afkoelt.
+     - "FE" (Filtered Entry): groene driehoek omhoog met tekst "FE" zichtbaar op de chart. Kleur: iets donkerder groen (#15FF00). Gefilterd, conservatiever koopsignaal.
+     - IDENTIFICATIE: lees primair de tekst-letters "AE" of "FE" op de driehoek zelf. Als de tekst niet scherp leesbaar is, gebruik de kleurtint als secundaire hint. Noem het "AE of FE, tekst niet scherp leesbaar" als je niet zeker bent - verwis de twee nooit.
+     - Er zijn GEEN verkoop-equivalenten (Vix Fix is een long-only capitulatie-detector).
+     - VALIDATIELOGICA: een AE/FE signaal is alleen relevant als het nog geldig is:
+       * Geldig: prijs maakte na het signaal GEEN nieuwe low.
+       * Gefaald: prijs maakte na het signaal toch een nieuwe low - signaal niet meer relevant.
+       * Onbevestigd: signaal staat op een van de laatste bars - nog te vroeg om te oordelen.
+     - RAPPORTEEREGEL: zoek het MEEST RECENTE AE of FE signaal op de chart. Beoordeel of het geldig, gefaald of onbevestigd is. Rapporteer alleen dit signaal met zijn status. Oudere gefaalde signalen worden genegeerd.
+   - Squeeze Momentum: kleine cirkels/driehoekjes los van de candles.
+     - Grijze cirkel = "squeeze on" (Bollinger Bands binnen Keltner Channel) - lage volatiliteit, markt comprimeert, uitbraak kan op handen zijn.
+     - Groene driehoek omhoog = squeeze net losgelaten met bullish momentum.
+     - Roze/rode driehoek omlaag = squeeze net losgelaten met bearish momentum.
+
+2. PANEEL "ATRP" (Average True Range Percent): een enkele lijn die de volatiliteit als percentage van de prijs toont.
+   - Dit is GEEN losstaand koop/verkoop-signaal maar CONTEXT.
+   - Boven ~8% = hoge volatiliteit: andere signalen zijn explosiever maar ook risicovoller.
+   - Onder ~2% = lage volatiliteit: rustige markt, vaak voorbode van squeeze of consolidatie.
+   - Gebruik het ATRP-niveau om de andere signalen te kwalificeren, nooit als zelfstandig signaal.
+
+3. PANEEL "DMI" (Directional Movement Index): drie lijnen met VASTE kleurcodering — ADX = raspberry pink/magenta, +DI = BLAUW, -DI = ORANJE. Verwissel deze kleuren nooit.
+   - WAARDEN: de exacte numerieke waarden van ADX, +DI en -DI worden door de gebruiker aangeleverd in de tekstprompt. Gebruik UITSLUITEND die opgegeven waarden. Lees ze NIET zelf af van de chart.
+   - RICHTING/HELLING van de ADX-lijn is het belangrijkste - niet alleen het absolute niveau.
+     - Stijgende ADX = trend versterkt. Dalende ADX = trend verzwakt.
+   - HET SPECIFIEKE KOOPSIGNAAL (long-only):
+     1. Startpunt: ADX staat op een LAAG NIVEAU, ONDER 15.
+     2. Voorwaarde: ADX ligt ook ONDER BEIDE DI-lijnen.
+     3. Omkeer: ADX bottoms out en draait om, begint te stijgen vanuit die <15 zone.
+     4. Trigger: ADX kruist OMHOOG door de -DI lijn (oranje). Dit is het koopsignaal.
+     5. Het is GEEN vereiste dat ADX ook boven +DI komt.
+     6. Als ADX al boven 15 staat wanneer het -DI kruist: NIET het vroege koopsignaal.
+   - +DI boven -DI = bullish context; -DI boven +DI = bearish context.
+   - Beschrijf altijd: (a) ADX-niveau relatief aan beide DI's, (b) of de kruisingssequentie zichtbaar is.
+
+ANALYSEMETHODE:
+- PORTFOLIO-REGEL: uitsluitend long-only portefeuille. Nooit short. Bearish = "geen positie / wachten". trade_suggestion.direction mag alleen "long" of "geen positie / wachten" zijn.
+- NAUWKEURIGHEID: als je iets niet zeker kan aflezen, zeg dat expliciet. Verzin geen cijfers.
+- Beoordeel elk element afzonderlijk op wat je ZIET.
+- Gebruik ATRP als kwalificerende context, nooit als zelfstandig signaal.
+- Combineer alles tot een bias-score van -100 (sterk bearish) tot +100 (sterk bullish). Bearish = "afblijven" in long-only context.
+- Wees specifiek: beschrijf kleuren, posities, hellingshoeken — geen generieke TA-taal.
+- Als iets niet zichtbaar is: zeg dat expliciet.
+- Schat S/R niveaus in prijswaarden op basis van Matrix dynamische lijnen EN zichtbare prijsstructuur.
+
+Antwoord UITSLUITEND met JSON in dit exacte formaat (geen markdown, geen uitleg):
+{
+  "ticker_timeframe_guess": "string",
+  "bias": {
+    "label": "bullish | bearish | neutral/mixed",
+    "score": -100 tot 100,
+    "summary": "1-2 zinnen"
+  },
+  "signals": {
+    "matrix": {
+      "candle_color": "lavender (bullish) | coral (bearish) | gemengd",
+      "buy_sell_marker": "geen | buy-driehoek zichtbaar | sell-driehoek zichtbaar",
+      "observation": "concrete beschrijving"
+    },
+    "support_resistance": {
+      "support_level": "prijs of niet duidelijk zichtbaar",
+      "resistance_level": "prijs of niet duidelijk zichtbaar",
+      "observation": "beschrijving"
+    },
+    "vix_fix": {
+      "meest_recent_signaal": "geen signaal zichtbaar | AE | FE | AE of FE (tekst niet scherp leesbaar)",
+      "signaal_status": "n.v.t. | geldig | gefaald | onbevestigd",
+      "observation": "concrete beschrijving"
+    },
+    "squeeze_momentum": {
+      "status": "squeeze on (compressie) | bullish release | bearish release | geen duidelijk signaal",
+      "observation": "concrete beschrijving"
+    },
+    "atrp": {
+      "level": "hoog (>8%) | normaal | laag (<2%) | niet goed afleesbaar",
+      "context": "wat dit betekent voor de andere signalen"
+    },
+    "dmi_adx": {
+      "adx_direction": "stijgend | dalend | vlak",
+      "adx_below_15": true,
+      "adx_below_both_di": true,
+      "buy_signal_crossover": "geen | net gebeurd: ADX kruist boven -DI vanuit <15 rustfase | ADX kruist -DI maar startte niet vanuit <15 | actief in trend",
+      "di_dominance": "+DI boven -DI (bullish context) | -DI boven +DI (bearish context)",
+      "observation": "concrete beschrijving"
+    }
+  },
+  "trade_suggestion": {
+    "direction": "long | geen positie / wachten",
+    "entry_rationale": "waarom dit instapmoment of waarom wachten",
+    "stop_loss": "prijs of niveau (alleen bij long)",
+    "target": "prijs of niveau (alleen bij long)",
+    "risk_note": "waarschuwing of voorwaarde"
+  }
+}`;
+
+  // ── Run analysis ──
+  async function runAnalysis() {
+    if (!imageBase64) return;
+
+    const adx = document.getElementById('adxVal').value;
+    const plusDi = document.getElementById('plusDiVal').value;
+    const minusDi = document.getElementById('minusDiVal').value;
+    const ticker = document.getElementById('tickerInput').value || 'Onbekend';
+    const timeframe = document.getElementById('timeframeInput').value;
+
+    analyzeBtn.disabled = true;
+    analyzeBtn.textContent = 'Analyseren...';
+
+    const output = document.getElementById('outputPanel');
+    output.innerHTML = `
+      <div class="loading-wrap">
+        <div class="spinner"></div>
+        <div class="loading-text">Chart wordt geanalyseerd...</div>
+      </div>`;
+
+    try {
+      const resp = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-6',
+          max_tokens: 2000,
+          system: SYSTEM_PROMPT,
+          messages: [{
+            role: 'user',
+            content: [
+              { type: 'image', source: { type: 'base64', media_type: imageMediaType, data: imageBase64 } },
+              { type: 'text', text: `Analyseer deze chart. Geef alleen JSON terug.
+
+DMI WAARDEN (door gebruiker opgegeven — gebruik als feiten, NIET zelf aflezen):
+- ADX (raspberry pink): ${adx || 'niet opgegeven'}
+- +DI (blauw): ${plusDi || 'niet opgegeven'}
+- -DI (oranje): ${minusDi || 'niet opgegeven'}` }
+            ]
+          }]
+        })
+      });
+
+      const data = await resp.json();
+      const text = (data.content || []).map(b => b.type === 'text' ? b.text : '').join('');
+      const json = JSON.parse(text.replace(/```json|```/g, '').trim());
+
+      // Save to Firebase (geen screenshot opslag - Spark plan)
+      const docRef = await addDoc(collection(db, 'analyses'), {
+        ticker,
+        timeframe,
+        date: new Date().toISOString(),
+        result: json,
+        dmi: { adx, plusDi, minusDi }
+      });
+
+      const localPreview = `data:${imageMediaType};base64,${imageBase64}`;
+      const analysis = { id: docRef.id, ticker, timeframe, date: new Date().toISOString(), result: json, localPreview };
+      analyses.unshift(analysis);
+      currentAnalysis = analysis;
+
+      renderHistory();
+      renderOutput(analysis);
+
+    } catch (err) {
+      output.innerHTML = `<div class="error-box">Fout: ${err.message}</div>`;
+    } finally {
+      analyzeBtn.disabled = false;
+      analyzeBtn.textContent = 'Analyseer chart';
+    }
+  }
+
+  // ── Render output ──
+  function renderOutput(analysis) {
+    const r = analysis.result;
+    const bias = r.bias?.label?.toLowerCase() || 'neutral';
+    const biasClass = bias.includes('bullish') ? 'bullish' : bias.includes('bearish') ? 'bearish' : 'neutral';
+    const score = r.bias?.score ?? 0;
+    const scorePct = ((score + 100) / 200 * 100).toFixed(0);
+    const scoreColor = biasClass === 'bullish' ? 'var(--lavender)' : biasClass === 'bearish' ? 'var(--coral)' : 'var(--gold)';
+    const s = r.signals || {};
+    const t = r.trade_suggestion || {};
+    const tradeDir = (t.direction || '').toLowerCase().includes('long') ? 'long' : 'wait';
+
+    document.getElementById('outputPanel').innerHTML = `
+      <!-- Ticker + date -->
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+        <div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:16px;font-weight:600;color:var(--text)">${analysis.ticker} <span style="color:var(--text-dim);font-size:13px;">· ${analysis.timeframe || ''}</span></div>
+          <div style="font-size:11px;color:var(--text-dim);margin-top:2px;">${formatDate(analysis.date)}</div>
+        </div>
+        <button class="btn-analyze" style="width:auto;padding:8px 16px;margin-bottom:0;" onclick="newAnalysis()">+ Nieuwe analyse</button>
+      </div>
+
+      <!-- Screenshot preview (alleen tijdens huidige sessie) -->
+      ${analysis.localPreview ? `<div class="result-section"><img src="${analysis.localPreview}" style="width:100%;border-radius:6px;border:1px solid var(--border);" /></div>` : ''}
+
+      <!-- Bias -->
+      <div class="result-section">
+        <div class="section-label">Overall bias</div>
+        <div class="bias-card ${biasClass}">
+          <div class="bias-score ${biasClass}">${score > 0 ? '+' : ''}${score}</div>
+          <div class="bias-info">
+            <div class="bias-label ${biasClass}">${r.bias?.label?.toUpperCase()}</div>
+            <div class="bias-summary">${r.bias?.summary || ''}</div>
+            <div class="score-bar-wrap" style="margin-top:10px;">
+              <div class="score-bar-fill" style="width:${scorePct}%;background:${scoreColor};"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- S/R -->
+      <div class="result-section">
+        <div class="section-label">Support / Resistance</div>
+        <div class="sr-row">
+          <div class="sr-item">
+            <div class="sr-label support">Support</div>
+            <div class="sr-value">${s.support_resistance?.support_level || '—'}</div>
+          </div>
+          <div class="sr-item">
+            <div class="sr-label resistance">Resistance</div>
+            <div class="sr-value">${s.support_resistance?.resistance_level || '—'}</div>
+          </div>
+        </div>
+        <div style="font-size:12px;color:var(--text-dim);line-height:1.5;">${s.support_resistance?.observation || ''}</div>
+      </div>
+
+      <!-- Signals -->
+      <div class="result-section">
+        <div class="section-label">Signalen</div>
+        <div class="signal-grid">
+
+          <!-- Matrix -->
+          <div class="signal-card">
+            <div class="sc-header">
+              <div class="sc-dot" style="background:var(--lavender)"></div>
+              <div class="sc-title">Matrix</div>
+            </div>
+            <div class="sc-row"><span class="sc-key">Candle</span><span class="sc-val">${s.matrix?.candle_color || '—'}</span></div>
+            <div class="sc-row"><span class="sc-key">Marker</span><span class="sc-val">${s.matrix?.buy_sell_marker || '—'}</span></div>
+            <div class="sc-observation">${s.matrix?.observation || ''}</div>
+          </div>
+
+          <!-- Vix Fix -->
+          <div class="signal-card">
+            <div class="sc-header">
+              <div class="sc-dot" style="background:var(--green)"></div>
+              <div class="sc-title">Vix Fix</div>
+            </div>
+            <div class="sc-row"><span class="sc-key">Signaal</span><span class="sc-val">${s.vix_fix?.meest_recent_signaal || '—'}</span></div>
+            <div class="sc-row"><span class="sc-key">Status</span><span class="sc-val">${s.vix_fix?.signaal_status || '—'}</span></div>
+            <div class="sc-observation">${s.vix_fix?.observation || ''}</div>
+          </div>
+
+          <!-- Squeeze -->
+          <div class="signal-card">
+            <div class="sc-header">
+              <div class="sc-dot" style="background:var(--gold)"></div>
+              <div class="sc-title">Squeeze</div>
+            </div>
+            <div class="sc-row"><span class="sc-key">Status</span><span class="sc-val">${s.squeeze_momentum?.status || '—'}</span></div>
+            <div class="sc-observation">${s.squeeze_momentum?.observation || ''}</div>
+          </div>
+
+          <!-- ATRP -->
+          <div class="signal-card">
+            <div class="sc-header">
+              <div class="sc-dot" style="background:var(--text-dim)"></div>
+              <div class="sc-title">ATRP</div>
+            </div>
+            <div class="sc-row"><span class="sc-key">Niveau</span><span class="sc-val">${s.atrp?.level || '—'}</span></div>
+            <div class="sc-observation">${s.atrp?.context || ''}</div>
+          </div>
+
+          <!-- DMI -->
+          <div class="signal-card full-width">
+            <div class="sc-header">
+              <div class="sc-dot" style="background:var(--adx-pink)"></div>
+              <div class="sc-title">DMI / ADX</div>
+            </div>
+            <div class="sc-row"><span class="sc-key">ADX richting</span><span class="sc-val">${s.dmi_adx?.adx_direction || '—'}</span></div>
+            <div class="sc-row"><span class="sc-key">ADX &lt; 15</span><span class="sc-val">${s.dmi_adx?.adx_below_15 ? 'Ja' : 'Nee'}</span></div>
+            <div class="sc-row"><span class="sc-key">ADX &lt; beide DI</span><span class="sc-val">${s.dmi_adx?.adx_below_both_di ? 'Ja' : 'Nee'}</span></div>
+            <div class="sc-row"><span class="sc-key">Koopsignaal</span><span class="sc-val">${s.dmi_adx?.buy_signal_crossover || '—'}</span></div>
+            <div class="sc-row"><span class="sc-key">DI dominantie</span><span class="sc-val">${s.dmi_adx?.di_dominance || '—'}</span></div>
+            <div class="sc-observation">${s.dmi_adx?.observation || ''}</div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Trade suggestion -->
+      <div class="result-section">
+        <div class="section-label">Trade suggestie</div>
+        <div class="trade-card">
+          <div class="trade-header">
+            <div class="trade-direction ${tradeDir}">${t.direction?.toUpperCase() || '—'}</div>
+          </div>
+          <div class="trade-body">
+            <div class="trade-row"><span class="trade-key">Rationale</span><span class="trade-val">${t.entry_rationale || '—'}</span></div>
+            ${tradeDir === 'long' ? `
+            <div class="trade-row"><span class="trade-key">Stop-loss</span><span class="trade-val">${t.stop_loss || '—'}</span></div>
+            <div class="trade-row"><span class="trade-key">Target</span><span class="trade-val">${t.target || '—'}</span></div>` : ''}
+            ${t.risk_note ? `<div class="risk-note">⚠ ${t.risk_note}</div>` : ''}
+          </div>
+        </div>
+      </div>
+    `;
+
+    window.newAnalysis = () => {
+      document.getElementById('outputPanel').innerHTML = '';
+      resetUpload();
+      document.getElementById('tickerInput').value = '';
+      document.getElementById('timeframeInput').value = 'Weekly';
+      document.getElementById('adxVal').value = '';
+      document.getElementById('plusDiVal').value = '';
+      document.getElementById('minusDiVal').value = '';
+    };
+  }
+
+  // ── History ──
+  function renderHistory() {
+    const list = document.getElementById('historyList');
+    if (!analyses.length) {
+      list.innerHTML = '<div class="history-empty">Nog geen analyses opgeslagen.</div>';
+      return;
+    }
+    list.innerHTML = analyses.map(a => {
+      const bias = a.result?.bias?.label?.toLowerCase() || 'neutral';
+      const biasClass = bias.includes('bullish') ? 'bullish' : bias.includes('bearish') ? 'bearish' : 'neutral';
+      const score = a.result?.bias?.score ?? 0;
+      const active = currentAnalysis?.id === a.id ? 'active' : '';
+      return `
+        <div class="history-item ${active}" onclick="loadAnalysis('${a.id}')">
+          <div style="display:flex;justify-content:space-between;align-items:start;">
+            <div class="hi-ticker">${a.ticker} <span style="color:var(--text-dim);font-weight:400;">${a.timeframe || ''}</span></div>
+            <button class="btn-delete" onclick="event.stopPropagation();deleteAnalysis('${a.id}')">✕</button>
+          </div>
+          <div class="hi-meta">${formatDate(a.date)}</div>
+          <div class="hi-bias ${biasClass}">${(a.result?.bias?.label || 'neutral').toUpperCase()} (${score > 0 ? '+' : ''}${score})</div>
+        </div>`;
+    }).join('');
+  }
+
+  window.loadAnalysis = (id) => {
+    const analysis = analyses.find(a => a.id === id);
+    if (!analysis) return;
+    currentAnalysis = analysis;
+    renderHistory();
+    renderOutput(analysis);
+  };
+
+  window.deleteAnalysis = async (id, screenshotPath) => {
+    if (!confirm('Deze analyse verwijderen?')) return;
+    try {
+      await deleteDoc(doc(db, 'analyses', id));
+      analyses = analyses.filter(a => a.id !== id);
+      if (currentAnalysis?.id === id) {
+        currentAnalysis = null;
+        document.getElementById('outputPanel').innerHTML = '';
+      }
+      renderHistory();
+    } catch (err) {
+      alert('Verwijderen mislukt: ' + err.message);
+    }
+  };
+
+  // ── Load history on start ──
+  async function loadHistory() {
+    try {
+      const q = query(collection(db, 'analyses'), orderBy('date', 'desc'));
+      const snap = await getDocs(q);
+      analyses = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      renderHistory();
+      if (analyses.length) {
+        currentAnalysis = analyses[0];
+        renderHistory();
+        renderOutput(analyses[0]);
+      }
+    } catch (err) {
+      console.error('History laden mislukt:', err);
+    }
+  }
+
+  loadHistory();
+
+  // ── Utils ──
+  function formatDate(iso) {
+    const d = new Date(iso);
+    return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
+  }
+</script>
+</body>
+</html>
