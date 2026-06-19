@@ -568,7 +568,7 @@
 
       <!-- Screenshot upload -->
       <input type="file" id="fileInput" accept="image/*" style="display:none" />
-      <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()" style="cursor:pointer;">
+      <div class="upload-zone" id="uploadZone" style="cursor:pointer;">
         <div class="upload-zone-icon">📊</div>
         <div class="upload-zone-text"><strong>Klik om screenshot te kiezen</strong></div>
         <div class="upload-zone-text" style="font-size:11px;margin-top:4px;">Matrix + ATRP + DMI zichtbaar</div>
@@ -617,7 +617,7 @@
         </div>
       </div>
 
-      <button class="btn-analyze" id="analyzeBtn" onclick="runAnalysis()" disabled>
+      <button class="btn-analyze" id="analyzeBtn" disabled>
         Analyseer chart
       </button>
     </div>
@@ -665,6 +665,7 @@
   const previewWrap = document.getElementById('previewWrap');
   const analyzeBtn = document.getElementById('analyzeBtn');
 
+  uploadZone.addEventListener('click', () => fileInput.click());
   uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('dragover'); });
   uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
   uploadZone.addEventListener('drop', e => {
@@ -700,6 +701,8 @@
     fileInput.value = '';
     updateAnalyzeBtn();
   }
+
+  analyzeBtn.addEventListener('click', runAnalysis);
 
   function updateAnalyzeBtn() {
     analyzeBtn.disabled = !imageBase64;
