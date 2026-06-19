@@ -628,9 +628,10 @@
 </div>
 
 <!-- Firebase -->
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-  import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, orderBy, query } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+<!-- Firebase via CDN scripts -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script>
 
 
   // ── Firebase config — vervang met jouw project ──
@@ -643,20 +644,14 @@
     appId: "1:431681045997:web:293f9f382a66b3e4f393e4"
   };
 
-  const app = initializeApp(firebaseConfig);
-  const db = getFirestore(app);
+  const app = firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
 
   // ── State ──
   let imageBase64 = null;
   let imageMediaType = null;
   let currentAnalysis = null;
   let analyses = [];
-
-  // ── Expose globals ──
-  window.resetUpload = resetUpload;
-  window.runAnalysis = runAnalysis;
-  window.loadAnalysis = loadAnalysis;
-  window.deleteAnalysis = deleteAnalysis;
 
   // ── Upload zone ──
   const uploadZone = document.getElementById('uploadZone');
@@ -862,7 +857,7 @@ DMI WAARDEN (door gebruiker opgegeven — gebruik als feiten, NIET zelf aflezen)
       const json = JSON.parse(text.replace(/```json|```/g, '').trim());
 
       // Save to Firebase (geen screenshot opslag - Spark plan)
-      const docRef = await addDoc(collection(db, 'analyses'), {
+      const docRef = await db.collection('analyses').add({
         ticker,
         timeframe,
         date: new Date().toISOString(),
@@ -1024,7 +1019,7 @@ DMI WAARDEN (door gebruiker opgegeven — gebruik als feiten, NIET zelf aflezen)
       </div>
     `;
 
-    window.newAnalysis = () => {
+    window.newAnalysis = function() {
       document.getElementById('outputPanel').innerHTML = '';
       resetUpload();
       document.getElementById('tickerInput').value = '';
@@ -1059,7 +1054,7 @@ DMI WAARDEN (door gebruiker opgegeven — gebruik als feiten, NIET zelf aflezen)
     }).join('');
   }
 
-  window.loadAnalysis = (id) => {
+  function loadAnalysis(id) {
     const analysis = analyses.find(a => a.id === id);
     if (!analysis) return;
     currentAnalysis = analysis;
@@ -1067,10 +1062,10 @@ DMI WAARDEN (door gebruiker opgegeven — gebruik als feiten, NIET zelf aflezen)
     renderOutput(analysis);
   };
 
-  window.deleteAnalysis = async (id, screenshotPath) => {
+  async function deleteAnalysis(id) {
     if (!confirm('Deze analyse verwijderen?')) return;
     try {
-      await deleteDoc(doc(db, 'analyses', id));
+      await db.collection('analyses').doc(id).delete();
       analyses = analyses.filter(a => a.id !== id);
       if (currentAnalysis?.id === id) {
         currentAnalysis = null;
@@ -1085,8 +1080,7 @@ DMI WAARDEN (door gebruiker opgegeven — gebruik als feiten, NIET zelf aflezen)
   // ── Load history on start ──
   async function loadHistory() {
     try {
-      const q = query(collection(db, 'analyses'), orderBy('date', 'desc'));
-      const snap = await getDocs(q);
+      const snap = await db.collection('analyses').orderBy('date', 'desc').get();
       analyses = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       renderHistory();
       if (analyses.length) {
