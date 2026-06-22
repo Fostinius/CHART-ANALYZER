@@ -830,7 +830,7 @@ Antwoord UITSLUITEND met JSON in dit exacte formaat (geen markdown, geen uitleg)
       </div>`;
 
     try {
-      const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      const resp = await fetch('https://chart-analyzer-proxy.j-cauberghe.workers.dev/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
